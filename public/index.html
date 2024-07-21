@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Scanner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        #video {
+            width: 100%;
+            max-width: 900px;
+            height: auto;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        #loadingDialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar {
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            background-color: #333;
+            padding: 10px;
+        }
+        .navbar a {
+            color: white;
+            padding: 14px 20px;
+            text-decoration: none;
+            text-align: center;
+        }
+        .navbar a:hover {
+            background-color: #575757;
+            border-radius: 4px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@10.16.7/dist/sweetalert2.min.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="index.html">Home</a>
+        <a href="data.html">Data QR Code</a>
+        <a href="laporan.html">Laporan Perbulan</a>
+    </div>
+    <br><br>
+    <div class="container">
+        <h1>QR Code Scanner</h1>
+        <video id="video" autoplay></video>
+        <canvas id="canvas" hidden></canvas>
+    </div>
+    <div id="loadingDialog">
+        <div class="loading-content">
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10.16.7/dist/sweetalert2.all.min.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const loadingDialog = document.getElementById('loadingDialog');
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCcL0982RRAtyRLGZptXuWL5zMiU_PQQxo",
+            authDomain: "grab-coffee-5d5ad.firebaseapp.com",
+            projectId: "grab-coffee-5d5ad",
+            storageBucket: "grab-coffee-5d5ad.appspot.com",
+            messagingSenderId: "700528440582",
+            appId: "1:700528440582:web:cadf73fbbcd057139a5a87"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const firestore = firebase.firestore();
+
+        // Fungsi untuk menampilkan loading dialog
+        function showLoadingDialog() {
+            loadingDialog.style.display = 'flex';
+        }
+
+        // Fungsi untuk menyembunyikan loading dialog
+        function hideLoadingDialog() {
+            loadingDialog.style.display = 'none';
+        }
+
+        // Fungsi untuk memulai akses kamera
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then((stream) => {
+                    video.srcObject = stream;
+                    video.play();
+                })
+                .catch((err) => {
+                    console.error('Error accessing camera: ', err);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Camera Error',
+                        text: 'Failed to access the camera. Please check your camera settings.'
+                    });
+                });
+        }
+
+        // Fungsi untuk memindai QR code
+        function scanQRCode() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+                if (code) {
+                    const id_pengguna = code.data;
+                    showLoadingDialog();
+                    checkQRCode(id_pengguna);
+                }
+            }
+            requestAnimationFrame(scanQRCode);
+        }
+
+        video.addEventListener('play', scanQRCode);
+
+        // Fungsi untuk memeriksa QR code di Firestore
+        function checkQRCode(id_pengguna) {
+            const docRef = firestore.collection("qr_codes").doc(id_pengguna);
+            docRef.get().then((doc) => {
+                hideLoadingDialog();
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data.state === 0) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: 'QR code telah berhasil dipindai dan status telah diperbarui.'
+                        });
+                        docRef.update({ state: 1 }).then(() => {
+                            console.log("State updated to 1.");
+                            // Update daily report
+                            updateDailyReport(id_pengguna);
+                        }).catch((error) => {
+                            console.error("Error updating state: ", error);
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Telah diambil',
+                            text: 'QR code ini sudah pernah digunakan.'
+                        });
+                    }
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: 'QR code tidak ditemukan di database.'
+                    });
+                }
+            }).catch((error) => {
+                hideLoadingDialog();
+                console.error("Error getting document: ", error);
+            });
+        }
+
+        // Fungsi untuk memperbarui laporan harian
+        function getWIBDate() {
+            const date = new Date();
+            const utcOffset = 7 * 60; // WIB adalah UTC+7
+            const localDate = new Date(date.getTime() + utcOffset * 60000);
+            return localDate.toISOString().split('T')[0]; // Format YYYY-MM-DD
+        }
+
+        // Fungsi untuk memperbarui laporan harian
+        function updateDailyReport(id_pengguna) {
+            const today = getWIBDate(); // Menggunakan WIB untuk tanggal hari ini
+            const reportRef = firestore.collection("laporan").doc(today);
+
+            console.log(`Updating daily report for ${today} with user ID ${id_pengguna}`);
+
+            reportRef.get().then((doc) => {
+                if (!doc.exists) {
+                    // Jika dokumen tidak ada, buat dokumen dengan array userIds kosong
+                    reportRef.set({
+                        userIds: [id_pengguna]
+                    }).then(() => {
+                        console.log("Daily report created and updated.");
+                    }).catch((error) => {
+                        console.error("Error creating daily report: ", error);
+                    });
+                } else {
+                    // Jika dokumen sudah ada, tambahkan id_pengguna ke array userIds
+                    reportRef.update({
+                        userIds: firebase.firestore.FieldValue.arrayUnion(id_pengguna)
+                    }).then(() => {
+                        console.log("Daily report updated.");
+                    }).catch((error) => {
+                        console.error("Error updating daily report: ", error);
+                    });
+                }
+            }).catch((error) => {
+                console.error("Error checking daily report: ", error);
+            });
+        }
+
+        // Fungsi untuk memeriksa dan mereset state pengguna setiap hari
+        function checkAndResetState() {
+            const docRef = firestore.collection("metadata").doc("last_reset");
+            docRef.get().then((doc) => {
+                const today = getWIBDate();
+                if (doc.exists) {
+                    const lastReset = doc.data().date;
+                    if (lastReset !== today) {
+                        resetAllStates();
+                        docRef.set({ date: today });
+                    }
+                } else {
+                    resetAllStates();
+                    docRef.set({ date: today });
+                }
+            }).catch((error) => {
+                console.error("Error getting last reset date: ", error);
+            });
+        }
+
+        // Fungsi untuk mereset semua state pengguna
+        function resetAllStates() {
+            firestore.collection("qr_codes").get().then((querySnapshot) => {
+                const batch = firestore.batch();
+                querySnapshot.forEach((doc) => {
+                    batch.update(doc.ref, { state: 0 });
+                });
+                batch.commit().then(() => {
+                    console.log("All states reset to 0.");
+                }).catch((error) => {
+                    console.error("Error resetting states: ", error);
+                });
+            }).catch((error) => {
+                console.error("Error getting QR codes: ", error);
+            });
+        }
+
+        // Memeriksa dan mereset state pengguna saat halaman dimuat
+        window.addEventListener('load', () => {
+            startCamera();
+            checkAndResetState();
+        });
+    </script>
+</body>
+</html>

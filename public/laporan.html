@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Perbulan</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            gap: 32px;
+        }
+        .card {
+            text-align: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 40vw;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        #loadingDialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar {
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            background-color: #333;
+            padding: 10px;
+        }
+        .navbar a {
+            color: white;
+            padding: 14px 20px;
+            text-decoration: none;
+            text-align: center;
+        }
+        .navbar a:hover {
+            background-color: #575757;
+            border-radius: 4px;
+        }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10.16.7/dist/sweetalert2.all.min.js"></script>
+</head>
+<body>
+    <div class="navbar">
+        <a href="index.html">Home</a>
+        <a href="data.html">Data QR Code</a>
+        <a href="laporan.html">Laporan Perbulan</a>
+    </div>
+    <br><br>
+    <div class="container">
+        <div class="card">
+            <h1>Laporan Perbulan</h1>
+            <div>
+                <label for="monthSelect">Bulan:</label>
+                <select id="monthSelect">
+                    <!-- Bulan akan diisi secara dinamis -->
+                </select>
+                <label for="yearSelect">Tahun:</label>
+                <select id="yearSelect">
+                    <!-- Tahun akan diisi secara dinamis -->
+                </select>
+                <button id="loadReportButton" class="btn">Load Report</button>
+            </div>
+            <div id="reportTableContainer">
+                <table id="reportTable">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Jumlah ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="2">Select a month and year to load the report</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Daily Report Details</h2>
+            <table id="dayReportTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nama</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="2">Select day</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="loadingDialog">
+        <div class="loading-content">
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCcL0982RRAtyRLGZptXuWL5zMiU_PQQxo",
+            authDomain: "grab-coffee-5d5ad.firebaseapp.com",
+            projectId: "grab-coffee-5d5ad",
+            storageBucket: "grab-coffee-5d5ad.appspot.com",
+            messagingSenderId: "700528440582",
+            appId: "1:700528440582:web:cadf73fbbcd057139a5a87"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const firestore = firebase.firestore();
+
+        const loadingDialog = document.getElementById('loadingDialog');
+        const loadReportButton = document.getElementById('loadReportButton');
+        const monthSelect = document.getElementById('monthSelect');
+        const yearSelect = document.getElementById('yearSelect');
+
+        function initializeDropdowns() {
+            const months = [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            const currentYear = new Date().getFullYear();
+
+            for (let i = 0; i < months.length; i++) {
+                const option = document.createElement('option');
+                option.value = i + 1;
+                option.textContent = months[i];
+                monthSelect.appendChild(option);
+            }
+
+            for (let year = currentYear - 5; year <= currentYear; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            }
+
+            const now = new Date();
+            monthSelect.value = now.getMonth() + 1;
+            yearSelect.value = now.getFullYear();
+        }
+
+        function showLoadingDialog() {
+            loadingDialog.style.display = 'flex';
+        }
+
+        function hideLoadingDialog() {
+            loadingDialog.style.display = 'none';
+        }
+
+        function loadReport() {
+            const month = monthSelect.value.padStart(2, '0'); // Format MM
+            const year = yearSelect.value;
+            const startDate = `${year}-${month}-01`;
+            const endDate = new Date(year, month, 0).toISOString().split('T')[0]; // Last day of the month
+
+            showLoadingDialog();
+            
+            firestore.collection("laporan")
+                .get()
+                .then((querySnapshot) => {
+                    const tableBody = document.querySelector('#reportTable tbody');
+                    tableBody.innerHTML = ''; // Clear existing rows
+
+                    let hasData = false;
+
+                    querySnapshot.forEach((doc) => {
+                        const docId = doc.id;
+                        const docDate = new Date(docId);
+                        const docMonth = (docDate.getMonth() + 1).toString().padStart(2, '0');
+                        const docYear = docDate.getFullYear();
+
+                        if (docMonth === month && docYear === parseInt(year, 10)) {
+                            hasData = true;
+                            const data = doc.data();
+                            const userCount = (data.userIds || []).length;
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td><a href="#" onclick="viewDailyReport('${docId}')">${docId}</a></td>
+                                <td>${userCount}</td>
+                            `;
+                            tableBody.appendChild(row);
+                        }
+                    });
+
+                    if (!hasData) {
+                        tableBody.innerHTML = '<tr><td colspan="2">No report found for the selected month</td></tr>';
+                    }
+
+                    hideLoadingDialog();
+                })
+                .catch((error) => {
+                    console.error("Error getting report: ", error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'An error occurred while retrieving the report.'
+                    });
+                    hideLoadingDialog();
+                });
+        }
+
+        function viewDailyReport(date) {
+            showLoadingDialog();
+
+            firestore.collection("laporan").doc(date).get().then((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    const userIds = data.userIds || [];
+                    const userPromises = userIds.map(id => firestore.collection("qr_codes").doc(id).get());
+
+                    // Fetch user details for all userIds
+                    Promise.all(userPromises).then(userDocs => {
+                        const userList = userDocs.map(userDoc => {
+                            if (userDoc.exists) {
+                                const userData = userDoc.data();
+                                return `<tr><td>${userDoc.id}</td><td>${userData.name != null ? userData.name : "Belum ada namanya"}</td></tr>`;
+                            } else {
+                                return `<tr><td>${userDoc.id}</td><td>Not found</td></tr>`;
+                            }
+                        }).join('');
+
+                        document.querySelector('#dayReportTable tbody').innerHTML = userList.length ? userList : '<tr><td colspan="2">No data available</td></tr>';
+                        hideLoadingDialog();
+                    }).catch(error => {
+                        console.error("Error fetching user details: ", error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'An error occurred while retrieving user details.'
+                        });
+                        hideLoadingDialog();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'No Data',
+                        text: 'No report found for the selected date.'
+                    });
+                    hideLoadingDialog();
+                }
+            }).catch((error) => {
+                console.error("Error getting daily report: ", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while retrieving the daily report.'
+                });
+                hideLoadingDialog();
+            });
+        }
+
+        loadReportButton.addEventListener('click', loadReport);
+
+        window.addEventListener('load', initializeDropdowns);
+    </script>
+</body>
+</html>
