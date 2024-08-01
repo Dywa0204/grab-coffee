@@ -5,6 +5,7 @@ const printReport = document.getElementById('printReport');
 const monthSelect = document.getElementById('monthSelect');
 const yearSelect = document.getElementById('yearSelect');
 const pdfProccess = document.getElementById('pdf-proccess');
+const reportDateText = document.getElementById('reportDateText');
 
 function initializeDropdowns() {
     const months = [
@@ -106,26 +107,43 @@ let currentDocId = '';
 function viewDailyReport(date) {
     showLoadingDialog();
 
+    reportDateText.innerHTML = formatDateString(date);
+    reportDateText.style.display = "block"
+
     currentDocId = date;
     firestore.collection("laporan").doc(date).get().then((doc) => {
         if (doc.exists) {
             const data = doc.data();
             const userIds = data.userIds || [];
-            const userPromises = userIds.map(id => firestore.collection("qr_codes").doc(id).get());
+            const userPromises = userIds.map(id => {
+                return firestore.collection("qr_codes").doc(id.split("@")[0]).get().then(userDoc => ({
+                    time: id.split("@")[1] || "00:00",
+                    userDoc
+                }));
+            });
 
             // Fetch user details for all userIds
             Promise.all(userPromises).then(userDocs => {
-                const userList = userDocs.map(userDoc => {
+                let i = 0;
+                const userList = userDocs.map(({ time, userDoc }) => {
+                    i++;
                     if (userDoc.exists) {
                         const userData = userDoc.data();
-                        return `<tr><td>${userDoc.id}</td><td>${userData.name != null ? userData.name : "Belum ada namanya"}</td></tr>`;
+                        return `<tr>
+                            <td>${i}</td>
+                            <td>${userDoc.id}</td>
+                            <td>${time}</td>
+                            <td>${userData.name != null ? userData.name : "-"}</td>
+                            <td>${userData.badgeNumber != null ? userData.badgeNumber : "-"}</td>
+                            <td>${userData.departement != null ? userData.departement : "-"}</td>
+                        </tr>`;
                     } else {
-                        return `<tr><td>${userDoc.id}</td><td>User tidak ditemukan</td></tr>`;
+                        return `<tr><td>${i}</td><td>${userDoc.id}</td><td>${time}</td><td>-</td><td>-</td><td>-</td></tr>`;
                     }
                 }).join('');
 
-                document.querySelector('#dayReportTable tbody').innerHTML = userList.length ? userList : '<tr><td colspan="2">No data available</td></tr>';
-                pdfProccess.style.display = 'table'
+                document.querySelector('#dayReportTable tbody').innerHTML = userList.length ? userList : '<tr><td colspan="6">No data available</td></tr>';
+                pdfProccess.style.display = 'table';
                 hideLoadingDialog();
             }).catch(error => {
                 console.error("Error fetching user details: ", error);
@@ -154,6 +172,7 @@ function viewDailyReport(date) {
         hideLoadingDialog();
     });
 }
+
 
 function downloadReports() {
     // Ambil tanggal dari docId

@@ -7,11 +7,13 @@ const modalCloseButton = document.getElementById('modalCloseButton');
 const modalGenerateButton = document.getElementById('modalGenerateButton');
 const modalPasswordInput = document.getElementById('modalPasswordInput');
 const modalNumberInput = document.getElementById('modalNumberInput');
-const editNameModal = document.getElementById('editNameModal');
-const editNameCloseButton = document.getElementById('editNameCloseButton');
-const saveNameButton = document.getElementById('saveNameButton');
+const editModal = document.getElementById('editModal');
+const editCloseButton = document.getElementById('editCloseButton');
+const saveEditButton = document.getElementById('saveEditButton');
 const editNameInput = document.getElementById('editNameInput');
-const editNameLoading = document.getElementById('editNameLoading');
+const editBadgeNumberInput = document.getElementById('editBadgeNumberInput');
+const editDepartementInput = document.getElementById('editDepartementInput');
+const editLoading = document.getElementById('editLoading');
 
 let currentEditId = '';
 
@@ -23,12 +25,12 @@ function hideLoadingDialog() {
     loadingDialog.style.display = 'none';
 }
 
-function showEditNameLoading() {
-    editNameLoading.style.display = 'block';
+function showEditLoading() {
+    editLoading.style.display = 'block';
 }
 
-function hideEditNameLoading() {
-    editNameLoading.style.display = 'none';
+function hideEditLoading() {
+    editLoading.style.display = 'none';
 }
 
 function generateRandomString(length) {
@@ -46,23 +48,30 @@ function loadQRCodeList() {
     firestore.collection("qr_codes").get().then((querySnapshot) => {
         const tableBody = document.querySelector('#qrTable tbody');
         tableBody.innerHTML = '';
+        let i = 1;
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             const id_pengguna = doc.id;
             const status = data.state === 0 ? 'Belum diambil' : 'Sudah diambil';
             const nama = data.name ? data.name : '-';
+            const badgeNumber = data.badgeNumber ? data.badgeNumber : '-';
+            const departement = data.departement ? data.departement : '-';
             const qrItem = document.createElement('tr');
             qrItem.innerHTML = `
+                <td>${i}</td>
                 <td>${id_pengguna}</td>
                 <td><span class="${ data.state === 1 ? 'take' : 'not-take' }">${status}</span></td>
                 <td>${nama}</td>
+                <td>${badgeNumber}</td>
+                <td>${departement}</td>
                 <td>
-                    <button class="btn" onclick="viewQRCode('${id_pengguna}')">View</button>
-                    <button class="btn" onclick="deleteQRCode('${id_pengguna}')">Hapus Data</button>
-                    <button class="btn" onclick="editName('${id_pengguna}')">Edit Nama</button>
+                    <button class="btn btn-view" onclick="viewQRCode('${id_pengguna}')">Lihat</button>
+                    <button class="btn btn-edit" onclick="editData('${id_pengguna}')">Edit</button>
+                    <button class="btn btn-delete" onclick="deleteQRCode('${id_pengguna}')">Hapus</button>
                 </td>
             `;
             tableBody.appendChild(qrItem);
+            i++;
         });
         hideLoadingDialog()
     }).catch((error) => {
@@ -121,7 +130,7 @@ modalGenerateButton.addEventListener('click', () => {
             Swal.fire({
                 icon: 'error',
                 title: 'Invalid Number',
-                text: 'Please enter a valid number of QR codes.'
+                text: 'Please enter a valid number of QR codes to generate.'
             });
         }
     } else {
@@ -133,38 +142,78 @@ modalGenerateButton.addEventListener('click', () => {
     }
 });
 
-function viewQRCode(id_pengguna) {
-    firestore.collection("qr_codes").doc(id_pengguna).get().then((doc) => {
-        if (doc.exists) {
-            const data = doc.data();
-            Swal.fire({
-                title: 'QR Code',
-                imageUrl: data.url,
-                imageWidth: 400,
-                imageHeight: 400,
-                imageAlt: 'QR Code'
-            });
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'QR code not found.'
-            });
-        }
-    }).catch((error) => {
-        console.error("Error getting QR code: ", error);
+editCloseButton.addEventListener('click', () => {
+    editModal.style.display = 'none';
+});
+
+saveEditButton.addEventListener('click', () => {
+    const newName = editNameInput.value;
+    const newBadgeNumber = editBadgeNumberInput.value;
+    const newDepartement = editDepartementInput.value;
+
+    if (newName && newBadgeNumber && newDepartement) {
+        showEditLoading();
+
+        firestore.collection('qr_codes').doc(currentEditId).update({
+            name: newName,
+            badgeNumber: newBadgeNumber,
+            departement: newDepartement
+        }).then(() => {
+            hideEditLoading();
+            editModal.style.display = 'none';
+            loadQRCodeList();
+        }).catch((error) => {
+            hideEditLoading();
+            console.error('Error updating document: ', error);
+        });
+    } else {
         Swal.fire({
             icon: 'error',
-            title: 'Error',
-            text: 'An error occurred while retrieving the QR code.'
+            title: 'Incomplete Data',
+            text: 'Please fill all the fields before saving.'
         });
+    }
+});
+
+function editData(id) {
+    currentEditId = id;
+    firestore.collection('qr_codes').doc(id).get().then((doc) => {
+        if (doc.exists) {
+            const data = doc.data();
+            editNameInput.value = data.name || '';
+            editBadgeNumberInput.value = data.badgeNumber || '';
+            editDepartementInput.value = data.departement || '';
+            editModal.style.display = 'flex';
+        } else {
+            console.error('No such document!');
+        }
+    }).catch((error) => {
+        console.error('Error getting document:', error);
     });
 }
 
-function deleteQRCode(id_pengguna) {
+function viewQRCode(id) {
+    firestore.collection('qr_codes').doc(id).get().then((doc) => {
+        if (doc.exists) {
+            const data = doc.data();
+            const qrCodeURL = data.url;
+            Swal.fire({
+                title: 'QR Code',
+                imageUrl: qrCodeURL,
+                imageHeight: 400
+            });
+        } else {
+            console.error('No such document!');
+        }
+    }).catch((error) => {
+        console.error('Error getting document:', error);
+    });
+}
+
+function deleteQRCode(id) {
     Swal.fire({
         title: 'Are you sure?',
-        text: "You won't be able to revert this!",
+        text: 'You won\'t be able to revert this!',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
@@ -172,114 +221,54 @@ function deleteQRCode(id_pengguna) {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            firestore.collection("qr_codes").doc(id_pengguna).delete().then(() => {
-                Swal.fire('Deleted!', 'The QR code has been deleted.', 'success');
+            showLoadingDialog();
+            firestore.collection('qr_codes').doc(id).delete().then(() => {
+                hideLoadingDialog();
                 loadQRCodeList();
             }).catch((error) => {
-                console.error("Error deleting QR code: ", error);
-                Swal.fire('Error!', 'An error occurred while deleting the QR code.', 'error');
+                hideLoadingDialog();
+                console.error('Error removing document: ', error);
             });
         }
     });
 }
-
-function editName(id_pengguna) {
-    currentEditId = id_pengguna;
-    editNameModal.style.display = 'flex';
-}
-
-editNameCloseButton.addEventListener('click', () => {
-    editNameModal.style.display = 'none';
-});
-
-saveNameButton.addEventListener('click', () => {
-    const name = editNameInput.value;
-    if (name.trim() === '') {
-        Swal.fire({
-            icon: 'error',
-            title: 'Invalid Name',
-            text: 'Please enter a valid name.'
-        });
-        return;
-    }
-
-    showEditNameLoading();
-    firestore.collection("qr_codes").doc(currentEditId).update({ name: name })
-        .then(() => {
-            hideEditNameLoading();
-            Swal.fire('Updated!', 'The name has been updated.', 'success');
-            editNameModal.style.display = 'none';
-            loadQRCodeList();
-        })
-        .catch((error) => {
-            hideEditNameLoading();
-            console.error("Error updating name: ", error);
-            Swal.fire('Error!', 'An error occurred while updating the name.', 'error');
-        });
-});
 
 downloadAllButton.addEventListener('click', () => {
+    showLoadingDialog();
     firestore.collection("qr_codes").get().then((querySnapshot) => {
-        const urls = [];
+        let promises = [];
+        let zip = new JSZip();
+        let qrFolder = zip.folder("qr_codes");
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            urls.push({
-                url: data.url,
-                id: doc.id,
-                name: data.name
-            });
+            const id_pengguna = doc.id;
+            const qrCodeURL = data.url;
+            const filename = `${id_pengguna}.png`;
+
+            const downloadPromise = fetch(qrCodeURL)
+                .then(response => response.blob())
+                .then(blob => {
+                    qrFolder.file(filename, blob);
+                })
+                .catch((error) => {
+                    console.error("Error downloading QR code: ", error);
+                });
+
+            promises.push(downloadPromise);
         });
 
-        if (urls.length > 0) {
-            Swal.fire({
-                title: 'Downloading...',
-                text: 'Mempersiapkan unduhan, harap tunggu sebentar.',
-                allowOutsideClick: false
+        Promise.all(promises).then(() => {
+            zip.generateAsync({ type: "blob" }).then((content) => {
+                saveAs(content, "qr_codes.zip");
+                hideLoadingDialog();
             });
-            Swal.showLoading();
-
-            // Fetch all QR codes and add to ZIP
-            Promise.all(urls.map(({ url, id, name }) => 
-                fetch(url).then(response => response.blob()).then(blob => ({ blob, id }))
-            ))
-            .then(results => {
-                const zip = new JSZip();
-                results.forEach(({ blob, id }) => {
-                    zip.file(`${id}.png`, blob);
-                });
-                return zip.generateAsync({ type: 'blob' });
-            })
-            .then(content => {
-                Swal.close();
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(content);
-                link.download = 'qr_codes.zip';
-                link.click();
-            })
-            .catch((error) => {
-                Swal.close();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Download Error',
-                    text: 'An error occurred while downloading the QR codes.'
-                });
-                console.error("Error during QR code download: ", error);
-            });
-        } else {
-            Swal.fire({
-                icon: 'info',
-                title: 'No QR Codes',
-                text: 'No QR codes available to download.'
-            });
-        }
+        }).catch(() => {
+            hideLoadingDialog();
+        });
     }).catch((error) => {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'An error occurred while retrieving QR codes for download.'
-        });
-        console.error("Error getting QR codes for download: ", error);
+        hideLoadingDialog();
+        console.error("Error getting QR codes: ", error);
     });
 });
 
-window.onload = loadQRCodeList;
+loadQRCodeList();

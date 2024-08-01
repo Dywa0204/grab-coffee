@@ -42,9 +42,25 @@ th {
     cursor: pointer;
     margin: 5px 0;
 }
+
 .btn:hover {
     background-color: #45a049;
 }
+
+.btn-edit {
+    background-color: #457ba0 !important;
+}
+.btn-edit:hover {
+    background-color: #366788 !important;
+}
+
+.btn-delete {
+    background-color: #e94545 !important;
+}
+.btn-delete:hover {
+    background-color: #c93434 !important;
+}
+
 .take, .not-take {
     padding: 4px 6px;
     border-radius: 5px;
@@ -101,6 +117,55 @@ th {
     background-color: #e53935;
 }
 #editNameLoading {
+    display: none;
+    margin-top: 10px;
+}
+
+/* ... existing styles ... */
+
+#editModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+.edit-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.edit-content input {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin: 5px;
+    width: calc(100% - 22px);
+}
+.edit-content button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    background-color: #4CAF50;
+    color: white;
+    cursor: pointer;
+}
+.edit-content button:hover {
+    background-color: #45a049;
+}
+.edit-content .close-btn {
+    background-color: #f44336;
+}
+.edit-content .close-btn:hover {
+    background-color: #e53935;
+}
+#editLoading {
     display: none;
     margin-top: 10px;
 }

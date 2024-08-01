@@ -31,15 +31,18 @@
             <table id="qrTable">
                 <thead>
                     <tr>
+                        <th>No</th>
                         <th>ID Pengguna</th>
                         <th>Status</th>
                         <th>Nama</th>
+                        <th>Badge Number</th>
+                        <th>Departement</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td colspan="4">Loading QR codes...</td>
+                        <td colspan="7">Loading QR codes...</td>
                     </tr>
                 </tbody>
             </table>
@@ -62,13 +65,15 @@
         </div>
     </div>
 
-    <div id="editNameModal">
-        <div class="edit-name-content">
-            <h2>Edit Nama</h2>
+    <div id="editModal">
+        <div class="edit-content">
+            <h2>Edit Data</h2>
             <input type="text" id="editNameInput" placeholder="Masukkan nama baru" />
-            <button id="saveNameButton">Save</button>
-            <button class="close-btn" id="editNameCloseButton">Close</button>
-            <div id="editNameLoading">
+            <input type="text" id="editBadgeNumberInput" placeholder="Masukkan badge number baru" />
+            <input type="text" id="editDepartementInput" placeholder="Masukkan departement baru" />
+            <button id="saveEditButton">Save</button>
+            <button class="close-btn" id="editCloseButton">Close</button>
+            <div id="editLoading">
                 <p>Saving...</p>
             </div>
         </div>

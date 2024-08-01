@@ -127,6 +127,24 @@ function getWIBDate() {
     return localDate.toISOString().split('T')[0]; // Format YYYY-MM-DD
 }
 
+function getCurrentTime() {
+    // Mendapatkan objek Date sekarang
+    const now = new Date();
+
+    // Mendapatkan jam dan menit
+    let hours = now.getHours();
+    let minutes = now.getMinutes();
+
+    // Menambahkan leading zero jika kurang dari 10
+    hours = hours < 10 ? '0' + hours : hours;
+    minutes = minutes < 10 ? '0' + minutes : minutes;
+
+    // Menggabungkan jam dan menit dalam format HH:MM
+    const currentTime = hours + ':' + minutes;
+
+    return currentTime;
+}
+
 // Fungsi untuk memperbarui laporan harian
 function updateDailyReport(id_pengguna) {
     const today = getWIBDate(); // Menggunakan WIB untuk tanggal hari ini
@@ -138,7 +156,7 @@ function updateDailyReport(id_pengguna) {
         if (!doc.exists) {
             // Jika dokumen tidak ada, buat dokumen dengan array userIds kosong
             reportRef.set({
-                userIds: [id_pengguna]
+                userIds: [`${id_pengguna}@${getCurrentTime()}`]
             }).then(() => {
                 console.log("Daily report created and updated.");
             }).catch((error) => {
@@ -147,7 +165,7 @@ function updateDailyReport(id_pengguna) {
         } else {
             // Jika dokumen sudah ada, tambahkan id_pengguna ke array userIds
             reportRef.update({
-                userIds: firebase.firestore.FieldValue.arrayUnion(id_pengguna)
+                userIds: firebase.firestore.FieldValue.arrayUnion(`${id_pengguna}@${getCurrentTime()}`)
             }).then(() => {
                 console.log("Daily report updated.");
             }).catch((error) => {
